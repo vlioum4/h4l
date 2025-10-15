@@ -7,32 +7,28 @@ Configuration of the HZZ4L DAS Exercise.
 from __future__ import annotations
 
 import os
-import re
 from functools import partial
-from typing import Set
 
-import yaml
 from scinum import Number
 import order as od
-import law
 
 from columnflow.util import DotDict
 
-from columnflow.production.cms.btag import BTagSFConfig
 
 # from cmsdb.util import add_decay_process
 
-from h4l.config.analysis_h4l import analysis_h4l
 from h4l.config.categories import add_all_categories
 from h4l.config.variables import add_variables
 
 from columnflow.config_util import (
-    get_root_processes_from_campaign, add_shift_aliases,
+    get_root_processes_from_campaign,
+    add_shift_aliases,
     get_shifts_from_sources,
-    add_category, verify_config_processes,
+    verify_config_processes,
 )
 
 thisdir = os.path.dirname(os.path.abspath(__file__))
+
 
 def add_das_config(
     analysis: od.Analysis,
@@ -41,7 +37,6 @@ def add_das_config(
     config_id: int | None = None,
     limit_dataset_files: int | None = None,
 ) -> od.Config:
-
     # TODO: Maybe add something for Run3 (pre/post EE/BPix)
 
     # get all root processes from campaign
@@ -52,25 +47,28 @@ def add_das_config(
 
     # gather campaign data (year and specifics for pre/post VFP)
     year = campaign.x.year
-    year_short = year%100
+    year_short = year % 100
 
     corr_postfix = f"{campaign.x.vfp}VFP" if year == 2016 else ""
 
     # triggers required, sorted by primary dataset tag for recorded data
     cfg.x.trigger_matrix = [
         (
-            "DoubleEG", {
+            "DoubleEG",
+            {
                 "Ele23_Ele12_CaloIdL_TrackIdL_IsoVL",
                 "DoubleEle25_CaloIdL_MW",
             },
         ),
         (
-            "DoubleMuon", {
+            "DoubleMuon",
+            {
                 "Mu17_TrkIsoVVL_Mu8_TrkIsoVVL_DZ_Mass3p8",
             },
         ),
         (
-            "MuonEG", {
+            "MuonEG",
+            {
                 "Mu23_TrkIsoVVL_Ele12_CaloIdL_TrackIdL_IsoVL",
                 "Mu8_TrkIsoVVL_Ele23_CaloIdL_TrackIdL_IsoVL_DZ",
                 "Mu12_TrkIsoVVL_Ele23_CaloIdL_TrackIdL_IsoVL_DZ",
@@ -78,12 +76,14 @@ def add_das_config(
             },
         ),
         (
-            "SingleElectron", {
+            "SingleElectron",
+            {
                 "Ele32_WPTight_Gsf",
             },
         ),
         (
-            "SingleMuon", {
+            "SingleMuon",
+            {
                 "IsoMu24",
             },
         ),
@@ -91,9 +91,7 @@ def add_das_config(
 
     # union of all triggers for use in MC
     cfg.x.all_triggers = {
-        trigger
-        for _, triggers in cfg.x.trigger_matrix
-        for trigger in triggers
+        trigger for _, triggers in cfg.x.trigger_matrix for trigger in triggers
     }
 
     # add processes we are interested in
@@ -147,7 +145,6 @@ def add_das_config(
         },
         # TODO: dy, wz, tt (color: #669966, label: Z+X)
     }
-
 
     for process_name in process_names:
         # add the process
@@ -245,14 +242,14 @@ def add_das_config(
     verify_config_processes(cfg, warn=True)
 
     # default objects, such as calibrator, selector, producer, ml model, inference model, etc
-    cfg.x.default_calibrator = "example" # TODO: Do we need any calibration?
+    cfg.x.default_calibrator = "example"  # TODO: Do we need any calibration?
     cfg.x.default_selector = "default"
     # TODO #
     # Task 2.
     # Expand selection to use HZZ4L official one
     # Hint: Add here additional selector_steps
     # Hint: Modify selection/default.py
-    cfg.x.default_selector_steps = ("trigger", "four_leptons")
+    cfg.x.default_selector_steps = ("trigger", "four_leptons", "HZZ4L")
     cfg.x.default_producer = "default"
     cfg.x.default_hist_producer = "cf_default"
     cfg.x.default_ml_model = None
@@ -288,7 +285,7 @@ def add_das_config(
     # Hint: Add here additional selector_steps
     # Hint: Modify selection/default.py
     cfg.x.selector_step_groups = {
-        "default": ["trigger", "four_leptons"],
+        "default": ["trigger", "four_leptons", "HZZ4L"],
     }
 
     # selector step labels (for cutflow plots)
@@ -306,38 +303,43 @@ def add_das_config(
 
     # lumi values in inverse pb
     # https://twiki.cern.ch/twiki/bin/view/CMS/LumiRecommendationsRun2?rev=2#Combination_and_correlations
-    cfg.x.luminosity = Number(41480, {
-        "lumi_13TeV_2017": 0.02j,
-        "lumi_13TeV_1718": 0.006j,
-        "lumi_13TeV_correlated": 0.009j,
-    })
+    cfg.x.luminosity = Number(
+        41480,
+        {
+            "lumi_13TeV_2017": 0.02j,
+            "lumi_13TeV_1718": 0.006j,
+            "lumi_13TeV_correlated": 0.009j,
+        },
+    )
 
     # jec configuration
     # https://twiki.cern.ch/twiki/bin/view/CMS/JECDataMC?rev=201
     jerc_postfix = "APV" if year == 2016 and campaign.x.vfp == "post" else ""
-    cfg.x.jec = DotDict.wrap({
-        "campaign": f"Summer19UL{year_short}{jerc_postfix}",
-        "version": {2016: "V7", 2017: "V5", 2018: "V5"}[year],
-        "jet_type": "AK4PFchs",
-        "levels": ["L1L2L3Res"],
-        "levels_for_type1_met": ["L1FastJet"],
-        "data_eras": sorted(filter(None, {
-            d.x("jec_era", None)
-            for d in cfg.datasets
-            if d.is_data
-        })),
-        "uncertainty_sources": [
-            "Total",
-        ],
-    })
+    cfg.x.jec = DotDict.wrap(
+        {
+            "campaign": f"Summer19UL{year_short}{jerc_postfix}",
+            "version": {2016: "V7", 2017: "V5", 2018: "V5"}[year],
+            "jet_type": "AK4PFchs",
+            "levels": ["L1L2L3Res"],
+            "levels_for_type1_met": ["L1FastJet"],
+            "data_eras": sorted(
+                filter(None, {d.x("jec_era", None) for d in cfg.datasets if d.is_data})
+            ),
+            "uncertainty_sources": [
+                "Total",
+            ],
+        }
+    )
 
     # JER
     # https://twiki.cern.ch/twiki/bin/view/CMS/JetResolution?rev=107
-    cfg.x.jer = DotDict.wrap({
-        "campaign": f"Summer19UL{year_short}{jerc_postfix}",
-        "version": "JR" + {2016: "V3", 2017: "V2", 2018: "V2"}[year],
-        "jet_type": "AK4PFchs",
-    })
+    cfg.x.jer = DotDict.wrap(
+        {
+            "campaign": f"Summer19UL{year_short}{jerc_postfix}",
+            "version": "JR" + {2016: "V3", 2017: "V2", 2018: "V2"}[year],
+            "jet_type": "AK4PFchs",
+        }
+    )
 
     # names of muon correction sets and working points
     # (used in the muon producer)
@@ -375,8 +377,11 @@ def add_das_config(
     # Add Electron SFs
     # Hint: modify event_weights below
     # Hint: modify production/default.py
-
-
+    cfg.add_shift(name="electron_up", id=100, type="shape")
+    cfg.add_shift(name="electron_down", id=110, type="shape")
+    add_shift_aliases(
+        cfg, "electron", {"electron_weight": "electron_weight_{direction}"}
+    )
     cfg.add_shift(name="murmuf_up", id=140, type="shape")
     cfg.add_shift(name="murmuf_down", id=141, type="shape")
     add_shift_aliases(
@@ -389,122 +394,238 @@ def add_das_config(
     )
 
     # external files
-    json_mirror = "/afs/cern.ch/user/m/mrieger/public/mirrors/jsonpog-integration-c3be7e71"
-    cfg.x.external_files = DotDict.wrap({
-        # jet energy correction
-        "jet_jerc": (f"{json_mirror}/POG/JME/{year}{corr_postfix}_UL/jet_jerc.json.gz", "v1"),
-
-        # tau energy correction and scale factors
-        "tau_sf": (f"{json_mirror}/POG/TAU/{year}{corr_postfix}_UL/tau.json.gz", "v1"),
-
-        # electron scale factors
-        "electron_sf": (f"{json_mirror}/POG/EGM/{year}{corr_postfix}_UL/electron.json.gz", "v1"),
-
-        # muon scale factors
-        "muon_sf": (f"{json_mirror}/POG/MUO/{year}{corr_postfix}_UL/muon_Z.json.gz", "v1"),
-
-        # btag scale factor
-        "btag_sf_corr": (f"{json_mirror}/POG/BTV/{year}{corr_postfix}_UL/btagging.json.gz", "v1"),
-
-        # met phi corrector
-        "met_phi_corr": (f"{json_mirror}/POG/JME/{year}{corr_postfix}_UL/met.json.gz", "v1"),
-
-        # hh-btag repository (lightweight) with TF saved model directories
-        "hh_btag_repo": ("https://github.com/hh-italian-group/HHbtag/archive/1dc426053418e1cab2aec021802faf31ddf3c5cd.tar.gz", "v1"),  # noqa
-    })
+    json_mirror = (
+        "/afs/cern.ch/user/m/mrieger/public/mirrors/jsonpog-integration-c3be7e71"
+    )
+    cfg.x.external_files = DotDict.wrap(
+        {
+            # jet energy correction
+            "jet_jerc": (
+                f"{json_mirror}/POG/JME/{year}{corr_postfix}_UL/jet_jerc.json.gz",
+                "v1",
+            ),
+            # tau energy correction and scale factors
+            "tau_sf": (
+                f"{json_mirror}/POG/TAU/{year}{corr_postfix}_UL/tau.json.gz",
+                "v1",
+            ),
+            # electron scale factors
+            "electron_sf": (
+                f"{json_mirror}/POG/EGM/{year}{corr_postfix}_UL/electron.json.gz",
+                "v1",
+            ),
+            # muon scale factors
+            "muon_sf": (
+                f"{json_mirror}/POG/MUO/{year}{corr_postfix}_UL/muon_Z.json.gz",
+                "v1",
+            ),
+            # btag scale factor
+            "btag_sf_corr": (
+                f"{json_mirror}/POG/BTV/{year}{corr_postfix}_UL/btagging.json.gz",
+                "v1",
+            ),
+            # met phi corrector
+            "met_phi_corr": (
+                f"{json_mirror}/POG/JME/{year}{corr_postfix}_UL/met.json.gz",
+                "v1",
+            ),
+            # hh-btag repository (lightweight) with TF saved model directories
+            "hh_btag_repo": (
+                "https://github.com/hh-italian-group/HHbtag/archive/1dc426053418e1cab2aec021802faf31ddf3c5cd.tar.gz",
+                "v1",
+            ),  # noqa
+        }
+    )
 
     # external files with more complex year dependence
     if year == 2016:
-        cfg.x.external_files.update(DotDict.wrap({
-            # lumi files
-            "lumi": {
-                "golden": ("/afs/cern.ch/cms/CAF/CMSCOMM/COMM_DQM/certification/Collisions16/13TeV/Legacy_2016/Cert_271036-284044_13TeV_Legacy2016_Collisions16_JSON.txt", "v1"),  # noqa
-                "normtag": ("/afs/cern.ch/user/l/lumipro/public/Normtags/normtag_PHYSICS.json", "v1"),
-            },
-
-            # https://twiki.cern.ch/twiki/bin/viewauth/CMS/PileupJSONFileforData?rev=45#Pileup_JSON_Files_For_Run_II
-            "pu": {
-                "json": ("/afs/cern.ch/cms/CAF/CMSCOMM/COMM_DQM/certification/Collisions16/13TeV/PileUp/pileup_latest.txt", "v1"),  # noqa
-                "mc_profile": ("https://raw.githubusercontent.com/cms-sw/cmssw/a65c2e1a23f2e7fe036237e2e34cda8af06b8182/SimGeneral/MixingModule/python/mix_2016_25ns_UltraLegacy_PoissonOOTPU_cfi.py", "v1"),  # noqa
-                "data_profile": {
-                    "nominal": (f"/afs/cern.ch/cms/CAF/CMSCOMM/COMM_DQM/certification/Collisions16/13TeV/PileUp/UltraLegacy/PileupHistogram-goldenJSON-13tev-2016-{campaign.x.vfp}VFP-69200ub-99bins.root", "v1"),  # noqa
-                    "minbias_xs_up": (f"/afs/cern.ch/cms/CAF/CMSCOMM/COMM_DQM/certification/Collisions16/13TeV/PileUp/UltraLegacy/PileupHistogram-goldenJSON-13tev-2016-{campaign.x.vfp}VFP-72400ub-99bins.root", "v1"),  # noqa
-                    "minbias_xs_down": (f"/afs/cern.ch/cms/CAF/CMSCOMM/COMM_DQM/certification/Collisions16/13TeV/PileUp/UltraLegacy/PileupHistogram-goldenJSON-13tev-2016-{campaign.x.vfp}VFP-66000ub-99bins.root", "v1"),  # noqa
-                },
-            },
-        }))
+        cfg.x.external_files.update(
+            DotDict.wrap(
+                {
+                    # lumi files
+                    "lumi": {
+                        "golden": (
+                            "/afs/cern.ch/cms/CAF/CMSCOMM/COMM_DQM/certification/Collisions16/13TeV/Legacy_2016/Cert_271036-284044_13TeV_Legacy2016_Collisions16_JSON.txt",
+                            "v1",
+                        ),  # noqa
+                        "normtag": (
+                            "/afs/cern.ch/user/l/lumipro/public/Normtags/normtag_PHYSICS.json",
+                            "v1",
+                        ),
+                    },
+                    # https://twiki.cern.ch/twiki/bin/viewauth/CMS/PileupJSONFileforData?rev=45#Pileup_JSON_Files_For_Run_II
+                    "pu": {
+                        "json": (
+                            "/afs/cern.ch/cms/CAF/CMSCOMM/COMM_DQM/certification/Collisions16/13TeV/PileUp/pileup_latest.txt",
+                            "v1",
+                        ),  # noqa
+                        "mc_profile": (
+                            "https://raw.githubusercontent.com/cms-sw/cmssw/a65c2e1a23f2e7fe036237e2e34cda8af06b8182/SimGeneral/MixingModule/python/mix_2016_25ns_UltraLegacy_PoissonOOTPU_cfi.py",
+                            "v1",
+                        ),  # noqa
+                        "data_profile": {
+                            "nominal": (
+                                f"/afs/cern.ch/cms/CAF/CMSCOMM/COMM_DQM/certification/Collisions16/13TeV/PileUp/UltraLegacy/PileupHistogram-goldenJSON-13tev-2016-{campaign.x.vfp}VFP-69200ub-99bins.root",
+                                "v1",
+                            ),  # noqa
+                            "minbias_xs_up": (
+                                f"/afs/cern.ch/cms/CAF/CMSCOMM/COMM_DQM/certification/Collisions16/13TeV/PileUp/UltraLegacy/PileupHistogram-goldenJSON-13tev-2016-{campaign.x.vfp}VFP-72400ub-99bins.root",
+                                "v1",
+                            ),  # noqa
+                            "minbias_xs_down": (
+                                f"/afs/cern.ch/cms/CAF/CMSCOMM/COMM_DQM/certification/Collisions16/13TeV/PileUp/UltraLegacy/PileupHistogram-goldenJSON-13tev-2016-{campaign.x.vfp}VFP-66000ub-99bins.root",
+                                "v1",
+                            ),  # noqa
+                        },
+                    },
+                }
+            )
+        )
     elif year == 2017:
-        cfg.x.external_files.update(DotDict.wrap({
-            # lumi files
-            "lumi": {
-                "golden": ("/afs/cern.ch/cms/CAF/CMSCOMM/COMM_DQM/certification/Collisions17/13TeV/Legacy_2017/Cert_294927-306462_13TeV_UL2017_Collisions17_GoldenJSON.txt", "v1"),  # noqa
-                "normtag": ("/afs/cern.ch/user/l/lumipro/public/Normtags/normtag_PHYSICS.json", "v1"),
-            },
-
-            # https://twiki.cern.ch/twiki/bin/viewauth/CMS/PileupJSONFileforData?rev=45#Pileup_JSON_Files_For_Run_II
-            "pu": {
-                "json": ("/afs/cern.ch/cms/CAF/CMSCOMM/COMM_DQM/certification/Collisions17/13TeV/PileUp/UltraLegacy/pileup_latest.txt", "v1"),  # noqa
-                "mc_profile": ("https://raw.githubusercontent.com/cms-sw/cmssw/435f0b04c0e318c1036a6b95eb169181bbbe8344/SimGeneral/MixingModule/python/mix_2017_25ns_UltraLegacy_PoissonOOTPU_cfi.py", "v1"),  # noqa
-                "data_profile": {
-                    "nominal": ("/afs/cern.ch/cms/CAF/CMSCOMM/COMM_DQM/certification/Collisions17/13TeV/PileUp/UltraLegacy/PileupHistogram-goldenJSON-13tev-2017-69200ub-99bins.root", "v1"),  # noqa
-                    "minbias_xs_up": ("/afs/cern.ch/cms/CAF/CMSCOMM/COMM_DQM/certification/Collisions17/13TeV/PileUp/UltraLegacy/PileupHistogram-goldenJSON-13tev-2017-72400ub-99bins.root", "v1"),  # noqa
-                    "minbias_xs_down": ("/afs/cern.ch/cms/CAF/CMSCOMM/COMM_DQM/certification/Collisions17/13TeV/PileUp/UltraLegacy/PileupHistogram-goldenJSON-13tev-2017-66000ub-99bins.root", "v1"),  # noqa
-                },
-            },
-        }))
+        cfg.x.external_files.update(
+            DotDict.wrap(
+                {
+                    # lumi files
+                    "lumi": {
+                        "golden": (
+                            "/afs/cern.ch/cms/CAF/CMSCOMM/COMM_DQM/certification/Collisions17/13TeV/Legacy_2017/Cert_294927-306462_13TeV_UL2017_Collisions17_GoldenJSON.txt",
+                            "v1",
+                        ),  # noqa
+                        "normtag": (
+                            "/afs/cern.ch/user/l/lumipro/public/Normtags/normtag_PHYSICS.json",
+                            "v1",
+                        ),
+                    },
+                    # https://twiki.cern.ch/twiki/bin/viewauth/CMS/PileupJSONFileforData?rev=45#Pileup_JSON_Files_For_Run_II
+                    "pu": {
+                        "json": (
+                            "/afs/cern.ch/cms/CAF/CMSCOMM/COMM_DQM/certification/Collisions17/13TeV/PileUp/UltraLegacy/pileup_latest.txt",
+                            "v1",
+                        ),  # noqa
+                        "mc_profile": (
+                            "https://raw.githubusercontent.com/cms-sw/cmssw/435f0b04c0e318c1036a6b95eb169181bbbe8344/SimGeneral/MixingModule/python/mix_2017_25ns_UltraLegacy_PoissonOOTPU_cfi.py",
+                            "v1",
+                        ),  # noqa
+                        "data_profile": {
+                            "nominal": (
+                                "/afs/cern.ch/cms/CAF/CMSCOMM/COMM_DQM/certification/Collisions17/13TeV/PileUp/UltraLegacy/PileupHistogram-goldenJSON-13tev-2017-69200ub-99bins.root",
+                                "v1",
+                            ),  # noqa
+                            "minbias_xs_up": (
+                                "/afs/cern.ch/cms/CAF/CMSCOMM/COMM_DQM/certification/Collisions17/13TeV/PileUp/UltraLegacy/PileupHistogram-goldenJSON-13tev-2017-72400ub-99bins.root",
+                                "v1",
+                            ),  # noqa
+                            "minbias_xs_down": (
+                                "/afs/cern.ch/cms/CAF/CMSCOMM/COMM_DQM/certification/Collisions17/13TeV/PileUp/UltraLegacy/PileupHistogram-goldenJSON-13tev-2017-66000ub-99bins.root",
+                                "v1",
+                            ),  # noqa
+                        },
+                    },
+                }
+            )
+        )
     else:  # year 2018
-        cfg.x.external_files.update(DotDict.wrap({
-            # lumi files
-            "lumi": {
-                "golden": ("/afs/cern.ch/cms/CAF/CMSCOMM/COMM_DQM/certification/Collisions18/13TeV/Legacy_2018/Cert_314472-325175_13TeV_Legacy2018_Collisions18_JSON.txt", "v1"),  # noqa
-                "normtag": ("/afs/cern.ch/user/l/lumipro/public/Normtags/normtag_PHYSICS.json", "v1"),
-            },
-
-            # https://twiki.cern.ch/twiki/bin/viewauth/CMS/PileupJSONFileforData?rev=45#Pileup_JSON_Files_For_Run_II
-            "pu": {
-                "json": ("/afs/cern.ch/cms/CAF/CMSCOMM/COMM_DQM/certification/Collisions18/13TeV/PileUp/UltraLegacy/pileup_latest.txt", "v1"),  # noqa
-                "mc_profile": ("https://raw.githubusercontent.com/cms-sw/cmssw/a65c2e1a23f2e7fe036237e2e34cda8af06b8182/SimGeneral/MixingModule/python/mix_2018_25ns_UltraLegacy_PoissonOOTPU_cfi.py", "v1"),  # noqa
-                "data_profile": {
-                    "nominal": ("/afs/cern.ch/cms/CAF/CMSCOMM/COMM_DQM/certification/Collisions18/13TeV/PileUp/UltraLegacy/PileupHistogram-goldenJSON-13tev-2018-69200ub-99bins.root", "v1"),  # noqa
-                    "minbias_xs_up": ("/afs/cern.ch/cms/CAF/CMSCOMM/COMM_DQM/certification/Collisions18/13TeV/PileUp/UltraLegacy/PileupHistogram-goldenJSON-13tev-2018-72400ub-99bins.root", "v1"),  # noqa
-                    "minbias_xs_down": ("/afs/cern.ch/cms/CAF/CMSCOMM/COMM_DQM/certification/Collisions18/13TeV/PileUp/UltraLegacy/PileupHistogram-goldenJSON-13tev-2018-66000ub-99bins.root", "v1"),  # noqa
-                },
-            },
-        }))
+        cfg.x.external_files.update(
+            DotDict.wrap(
+                {
+                    # lumi files
+                    "lumi": {
+                        "golden": (
+                            "/afs/cern.ch/cms/CAF/CMSCOMM/COMM_DQM/certification/Collisions18/13TeV/Legacy_2018/Cert_314472-325175_13TeV_Legacy2018_Collisions18_JSON.txt",
+                            "v1",
+                        ),  # noqa
+                        "normtag": (
+                            "/afs/cern.ch/user/l/lumipro/public/Normtags/normtag_PHYSICS.json",
+                            "v1",
+                        ),
+                    },
+                    # https://twiki.cern.ch/twiki/bin/viewauth/CMS/PileupJSONFileforData?rev=45#Pileup_JSON_Files_For_Run_II
+                    "pu": {
+                        "json": (
+                            "/afs/cern.ch/cms/CAF/CMSCOMM/COMM_DQM/certification/Collisions18/13TeV/PileUp/UltraLegacy/pileup_latest.txt",
+                            "v1",
+                        ),  # noqa
+                        "mc_profile": (
+                            "https://raw.githubusercontent.com/cms-sw/cmssw/a65c2e1a23f2e7fe036237e2e34cda8af06b8182/SimGeneral/MixingModule/python/mix_2018_25ns_UltraLegacy_PoissonOOTPU_cfi.py",
+                            "v1",
+                        ),  # noqa
+                        "data_profile": {
+                            "nominal": (
+                                "/afs/cern.ch/cms/CAF/CMSCOMM/COMM_DQM/certification/Collisions18/13TeV/PileUp/UltraLegacy/PileupHistogram-goldenJSON-13tev-2018-69200ub-99bins.root",
+                                "v1",
+                            ),  # noqa
+                            "minbias_xs_up": (
+                                "/afs/cern.ch/cms/CAF/CMSCOMM/COMM_DQM/certification/Collisions18/13TeV/PileUp/UltraLegacy/PileupHistogram-goldenJSON-13tev-2018-72400ub-99bins.root",
+                                "v1",
+                            ),  # noqa
+                            "minbias_xs_down": (
+                                "/afs/cern.ch/cms/CAF/CMSCOMM/COMM_DQM/certification/Collisions18/13TeV/PileUp/UltraLegacy/PileupHistogram-goldenJSON-13tev-2018-66000ub-99bins.root",
+                                "v1",
+                            ),  # noqa
+                        },
+                    },
+                }
+            )
+        )
 
     # target file size after MergeReducedEvents in MB
     cfg.x.reduced_file_size = 512.0
 
     # columns to keep after certain steps
-    cfg.x.keep_columns = DotDict.wrap({
-        "cf.ReduceEvents": {
-            # general event info
-            "run", "luminosityBlock", "event",
-            # object info
-            "Jet.btagDeepFlavB", "Jet.hadronFlavour",
-            "Muon.pfRelIso04_all", "Muon.charge",
-            "Electron.deltaEtaSC", "Electron.charge",
-            "Electron.mvaFall17V2Iso", "Electron.mvaHZZIso",
-            "MET.pt", "MET.phi", "MET.significance", "MET.covXX", "MET.covXY", "MET.covYY",
-            "PV.npvs",
-            # columns added during selection
-            "deterministic_seed", "process_id", "mc_weight", "cutflow.*",
-            "category_ids", "mc_weight", "pdf_weight*", "murmuf_weight*",
-            "leptons_os", "single_triggered", "cross_triggered",
-            "pu_weight*",
-        } | {
-            # four momenta information
-            f"{field}.{var}"
-            for field in ["Jet", "Muon", "Electron"]
-            for var in ["pt", "eta", "phi", "mass", "e"]
-        },
-        "cf.MergeSelectionMasks": {
-            "normalization_weight", "process_id", "category_ids", "cutflow.*",
-        },
-        "cf.UniteColumns": {
-            "*",
-        },
-    })
+    cfg.x.keep_columns = DotDict.wrap(
+        {
+            "cf.ReduceEvents": {
+                # general event info
+                "run",
+                "luminosityBlock",
+                "event",
+                # object info
+                "Jet.btagDeepFlavB",
+                "Jet.hadronFlavour",
+                "Muon.pfRelIso04_all",
+                "Muon.charge",
+                "Electron.deltaEtaSC",
+                "Electron.charge",
+                "Electron.mvaFall17V2Iso",
+                "Electron.mvaHZZIso",
+                "MET.pt",
+                "MET.phi",
+                "MET.significance",
+                "MET.covXX",
+                "MET.covXY",
+                "MET.covYY",
+                "PV.npvs",
+                # columns added during selection
+                "deterministic_seed",
+                "process_id",
+                "mc_weight",
+                "cutflow.*",
+                "category_ids",
+                "mc_weight",
+                "pdf_weight*",
+                "murmuf_weight*",
+                "leptons_os",
+                "single_triggered",
+                "cross_triggered",
+                "pu_weight*",
+            }
+            | {
+                # four momenta information
+                f"{field}.{var}"
+                for field in ["Jet", "Muon", "Electron"]
+                for var in ["pt", "eta", "phi", "mass", "e"]
+            },
+            "cf.MergeSelectionMasks": {
+                "normalization_weight",
+                "process_id",
+                "category_ids",
+                "cutflow.*",
+            },
+            "cf.UniteColumns": {
+                "*",
+            },
+        }
+    )
 
     # names of electron correction sets and working points
     # (used in the electron_sf producer)
@@ -512,7 +633,10 @@ def add_das_config(
 
     # names of muon correction sets and working points
     # (used in the muon producer)
-    cfg.x.muon_sf_names = ("NUM_TightRelIso_DEN_TightIDandIPCut", f"{year}{corr_postfix}_UL")
+    cfg.x.muon_sf_names = (
+        "NUM_TightRelIso_DEN_TightIDandIPCut",
+        f"{year}{corr_postfix}_UL",
+    )
 
     # event weight columns as keys in an OrderedDict, mapped to shift instances they depend on
     # TODO: Add weights
@@ -522,15 +646,18 @@ def add_das_config(
     # Add Electron SFs
     # Hint: modify cfg L370
     # Hint: modify production/default.py
-    cfg.x.event_weights = DotDict({
-        "normalization_weight": [],
-        "muon_weight": get_shifts("mu"),
-    })
+    cfg.x.event_weights = DotDict(
+        {
+            "normalization_weight": [],
+            "muon_weight": get_shifts("mu"),
+            "electron_weight": get_shifts("electron"),
+        }
+    )
 
     # versions per task family, either referring to strings or to callables receving the invoking
     # task instance and parameters to be passed to the task family
     cfg.x.versions = {
-        # "cf.CalibrateEvents": "prod1",
+        "cf.CalibrateEvents": "v0",
         # "cf.SelectEvents": (lambda cls, inst, params: "prod1" if params.get("selector") == "default" else "dev1"),
         # ...
     }

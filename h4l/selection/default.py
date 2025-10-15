@@ -1,15 +1,12 @@
 from operator import and_
 from functools import reduce
 from collections import defaultdict
-from typing import Tuple
 
 from columnflow.util import maybe_import
 
 from columnflow.selection.stats import increment_stats
 from columnflow.selection import Selector, SelectionResult, selector
-from columnflow.selection.cms.met_filters import met_filters
 from columnflow.selection.cms.json_filter import json_filter
-from columnflow.selection.cms.jets import jet_veto_map
 
 from columnflow.production.categories import category_ids
 from columnflow.production.util import attach_coffea_behavior
@@ -27,7 +24,7 @@ from h4l.selection.trigger import trigger_selection
 # Bonus: Leading lepton must have pT > 20 GeV, subleading pT > 10 GeV
 # Hint: import the following
 # First you need to define build_4sf in util.py
-# from h4l.util import build_2e2mu, build_4sf
+from h4l.util import build_2e2mu, build_4sf  # noqa
 
 np = maybe_import("numpy")
 ak = maybe_import("awkward")
@@ -37,17 +34,25 @@ ak = maybe_import("awkward")
     uses={
         "event",
         category_ids,
-        attach_coffea_behavior, json_filter, mc_weight,
-        electron_selection, muon_selection,
+        attach_coffea_behavior,
+        json_filter,
+        mc_weight,
+        electron_selection,
+        muon_selection,
         trigger_selection,
-        increment_stats, process_ids
+        increment_stats,
+        process_ids,
     },
     produces={
         category_ids,
-        attach_coffea_behavior, json_filter, mc_weight,
-        electron_selection, muon_selection,
+        attach_coffea_behavior,
+        json_filter,
+        mc_weight,
+        electron_selection,
+        muon_selection,
         trigger_selection,
-        increment_stats, process_ids,
+        increment_stats,
+        process_ids,
     },
     # sandbox=dev_sandbox("bash::$CF_BASE/sandboxes/venv_columnar.sh"),
     exposed=True,
@@ -109,6 +114,20 @@ def default(
     # The ZZ candidate must have mZZ > 70 GeV
     # Bonus: Leading lepton must have pT > 20 GeV, subleading pT > 10 GeV
 
+    ele_plus = electrons[electrons.charge > 0]
+    ele_minus = electrons[electrons.charge < 0]
+    muon_plus = muons[muons.charge > 0]
+    muon_minus = muons[muons.charge < 0]
+    c_2e2mu = build_2e2mu(muon_plus, muon_minus, ele_plus, ele_minus)
+    z_window = (
+        (c_2e2mu.z1.mass > 12.0)
+        & (c_2e2mu.z1.mass < 120.0)
+        & (c_2e2mu.z2.mass > 12.0)
+        & (c_2e2mu.z2.mass < 120.0)
+    )
+    z1_mass = c_2e2mu.z1.mass > 40
+    zz_mass = c_2e2mu.zz.mass > 70
+    results.steps["HZZ4L"] = ak.any(z_window & z1_mass & zz_mass, axis=1)
     # post selection build process IDs
     events = self[process_ids](events, **kwargs)
 
@@ -117,24 +136,24 @@ def default(
     results.event = ak.fill_none(results.event, False)
 
     weight_map = {
-      "num_events": Ellipsis,
-      "num_events_selected": results.event,
+        "num_events": Ellipsis,
+        "num_events_selected": results.event,
     }
     group_map = {}
     if self.dataset_inst.is_mc:
-      weight_map = {
-          **weight_map,
-          # mc weight for all events
-          "sum_mc_weight": (events.mc_weight, Ellipsis),
-          "sum_mc_weight_selected": (events.mc_weight, results.event),
-      }
-      group_map = {
-          # per process
-          "process": {
-              "values": events.process_id,
-               "mask_fn": (lambda v: events.process_id == v),
-          },
-      }
+        weight_map = {
+            **weight_map,
+            # mc weight for all events
+            "sum_mc_weight": (events.mc_weight, Ellipsis),
+            "sum_mc_weight_selected": (events.mc_weight, results.event),
+        }
+        group_map = {
+            # per process
+            "process": {
+                "values": events.process_id,
+                "mask_fn": (lambda v: events.process_id == v),
+            },
+        }
 
     events, results = self[increment_stats](
         events,
