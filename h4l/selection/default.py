@@ -119,14 +119,16 @@ def default(
     muon_plus = muons[muons.charge > 0]
     muon_minus = muons[muons.charge < 0]
     c_2e2mu = build_2e2mu(muon_plus, muon_minus, ele_plus, ele_minus)
+    c_el4 = build_4sf(ele_plus, ele_minus)
+    c_mu4 = build_4sf(muon_plus, muon_minus)
+    z1 = ak.concatenate([c_2e2mu.z1, c_el4.z1, c_mu4.z1], axis=1)
+    z2 = ak.concatenate([c_2e2mu.z2, c_el4.z2, c_mu4.z2], axis=1)
+    zz = ak.concatenate([c_2e2mu.zz, c_el4.zz, c_mu4.zz], axis=1)
     z_window = (
-        (c_2e2mu.z1.mass > 12.0)
-        & (c_2e2mu.z1.mass < 120.0)
-        & (c_2e2mu.z2.mass > 12.0)
-        & (c_2e2mu.z2.mass < 120.0)
+        (z1.mass > 12.0) & (z1.mass < 120.0) & (z2.mass > 12.0) & (z2.mass < 120.0)
     )
-    z1_mass = c_2e2mu.z1.mass > 40
-    zz_mass = c_2e2mu.zz.mass > 70
+    z1_mass = z1.mass > 40
+    zz_mass = zz.mass > 70
     results.steps["HZZ4L"] = ak.any(z_window & z1_mass & zz_mass, axis=1)
     # post selection build process IDs
     events = self[process_ids](events, **kwargs)

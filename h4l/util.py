@@ -37,22 +37,35 @@ def build_2e2mu(muons_plus, muons_minus, electrons_plus, electrons_minus):
     return ak.zip({"z1": z1, "z2": z2, "zz": zz}, depth_limit=1)
 
 
-def build_4sf(lepton_plus, lepton_minus):
-    lep1_plus, lep2_plus = ak.unzip(ak.combinations(lepton_plus, 2))
-    lep1_minus, lep2_minus = ak.unzip(ak.combinations(lepton_minus, 2))
+def build_4sf(leptons_plus, leptons_minus):
+    lp1, lp2 = ak.unzip(ak.combinations(leptons_plus, 2))
+    lm1, lm2 = ak.unzip(ak.combinations(leptons_minus, 2))
 
-    lep11_plus, lep11_minus = ak.unzip(ak.cartesian(lep1_plus, lep1_minus))
-    lep12_plus, lep12_minus = ak.unzip(ak.cartesian(lep1_plus, lep2_minus))
-    lep21_plus, lep21_minus = ak.unzip(ak.cartesian(lep2_plus, lep1_minus))
-    lep22_plus, lep22_minus = ak.unzip(ak.cartesian(lep2_plus, lep2_minus))
+    lp11, lm11 = ak.unzip(ak.cartesian([lp1, lm1]))
+    lp12, lm12 = ak.unzip(ak.cartesian([lp1, lm2]))
+    lp21, lm21 = ak.unzip(ak.cartesian([lp2, lm1]))
+    lp22, lm22 = ak.unzip(ak.cartesian([lp2, lm2]))
 
-    z11 = lep11_plus + lep11_minus
-    z12 = lep12_plus + lep12_minus
-    z21 = lep21_plus + lep21_minus
-    z22 = lep22_plus + lep22_minus
+    z11 = lp11 + lm11
+    z12 = lp12 + lm12
+    z22 = lp22 + lm22
+    z21 = lp21 + lm21
 
-    za = ak.concatenate(z11, z12, z22, z21)
-    zb = ak.concatenate()
+    cond1 = abs(z11.mass - 91.1876) < abs(z12.mass - 91.1876)
+    z1cand = ak.where(cond1, z11, z12)
+    z2cand = ak.where(cond1, z22, z21)
+
+    cond2 = abs(z1cand.mass - 91.1876) < abs(z21.mass - 91.1876)
+    z1cand = ak.where(cond2, z1cand, z21)
+    z2cand = ak.where(cond2, z2cand, z12)
+
+    cond3 = abs(z1cand.mass - 91.1876) < abs(z22.mass - 91.1876)
+    z1 = ak.where(cond3, z1cand, z22)
+    z2 = ak.where(cond3, z2cand, z11)
+
+    zz = z1 + z2
+
+    return ak.zip({"z1": z1, "z2": z2, "zz": zz}, depth_limit=1)
 
 
 # TODO #
